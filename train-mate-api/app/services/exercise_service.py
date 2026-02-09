@@ -1,8 +1,22 @@
 from firebase_setup import db
 
 # Save Exercise
-def save_exercise(uid, name, calories_per_hour, public, category_id, training_muscle, image_url):
+def save_exercise(
+    uid,
+    name,
+    calories_per_hour,
+    public,
+    category_id,
+    training_muscle=None,
+    image_url=None,
+    equipment_required=None,
+    alternative_exercise_ids=None,
+):
     try:
+        if equipment_required is None:
+            equipment_required = ["UNKNOWN"]
+        if alternative_exercise_ids is None:
+            alternative_exercise_ids = []
         exercise_ref = db.collection('exercises').document()  # Create a new document with a generated ID
         exercise_data = {
             'name': name,
@@ -11,7 +25,9 @@ def save_exercise(uid, name, calories_per_hour, public, category_id, training_mu
             'owner': uid,
             'category_id': category_id,
             'image_url': image_url,
-            'training_muscle': training_muscle
+            'training_muscle': training_muscle,
+            'equipment_required': equipment_required,
+            'alternative_exercise_ids': alternative_exercise_ids,
         }
         exercise_ref.set(exercise_data)
         exercise_data['id'] = exercise_ref.id
@@ -80,7 +96,12 @@ def get_all_exercises():
                 "id": exercise.id,  # Añadimos el id del ejercicio
                 "calories_per_hour": exercise.get("calories_per_hour"),
                 "name": exercise.get("name"),
-                "public": exercise.get("public")
+                "public": exercise.get("public"),
+                "category_id": exercise.get("category_id"),
+                "training_muscle": exercise.get("training_muscle"),
+                "image_url": exercise.get("image_url"),
+                "equipment_required": exercise.get("equipment_required"),
+                "alternative_exercise_ids": exercise.get("alternative_exercise_ids"),
             }
             for exercise in exercises  # No es necesario hacer to_dict antes
         ]
