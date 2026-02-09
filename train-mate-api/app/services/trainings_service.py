@@ -3,6 +3,81 @@ import json
 from collections import Counter
 from datetime import datetime
 
+
+def _normalize_equipment_list(items):
+    if not items:
+        return []
+    return [str(item).upper() for item in items if isinstance(item, str)]
+
+
+def _is_compatible(required, available):
+    if not required:
+        return True
+    required_set = set(_normalize_equipment_list(required))
+    available_set = set(_normalize_equipment_list(available))
+    if "ANY" in required_set:
+        return True
+    return required_set.issubset(available_set)
+
+
+def _pick_alternative(original, alternatives, available):
+    compatible = [alt for alt in alternatives if _is_compatible(alt.get("equipment_required"), available)]
+    if not compatible:
+        return None
+
+    for alt in compatible:
+        if alt.get("category_id") == original.get("category_id"):
+            return alt
+        if alt.get("training_muscle") and alt.get("training_muscle") == original.get("training_muscle"):
+            return alt
+
+    return compatible[0]
+
+
+def adapt_training(exercise_ids, available_equipment):
+    adapted_exercises = []
+    replacements = []
+    missing = []
+
+    for exercise_id in exercise_ids:
+        exercise_ref = db.collection('exercises').document(exercise_id)
+        exercise_doc = exercise_ref.get()
+        if not exercise_doc.exists:
+            missing.append(exercise_id)
+            continue
+
+        exercise_data = exercise_doc.to_dict()
+        exercise_data['id'] = exercise_id
+        required = exercise_data.get("equipment_required")
+
+        if _is_compatible(required, available_equipment):
+            adapted_exercises.append(exercise_data)
+            continue
+
+        alternative_ids = exercise_data.get("alternative_exercise_ids") or []
+        alternatives = []
+        for alt_id in alternative_ids:
+            alt_ref = db.collection('exercises').document(alt_id)
+            alt_doc = alt_ref.get()
+            if not alt_doc.exists:
+                continue
+            alt_data = alt_doc.to_dict()
+            alt_data['id'] = alt_id
+            alternatives.append(alt_data)
+
+        chosen = _pick_alternative(exercise_data, alternatives, available_equipment)
+        if chosen:
+            adapted_exercises.append(chosen)
+            replacements.append({"from": exercise_id, "to": chosen.get("id")})
+        else:
+            missing.append(exercise_id)
+
+    return {
+        "adapted_exercises": adapted_exercises,
+        "replacements": replacements,
+        "missing": missing,
+    }
+
 def save_user_training(uid, data, exercises_ids, calories_per_hour_mean):
     user_ref = db.collection('trainings').document(uid)
     user_doc = user_ref.get()

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.services.auth_service import verify_token_service
-from app.services.trainings_service import get_popular_exercises, save_user_training, get_user_trainings, get_training_by_id
+from app.services.trainings_service import get_popular_exercises, save_user_training, get_user_trainings, get_training_by_id, adapt_training
 
 trainings_bp = Blueprint('trainings_bp', __name__)
 
@@ -18,6 +18,8 @@ def save_training():
 
         # Calculate calories per hour mean
         exercises = data.get('exercises')
+        if not isinstance(exercises, list) or len(exercises) == 0:
+            return jsonify({'error': 'exercises must be a non-empty list'}), 400
         calories_per_hour_sum = 0
         exercises_ids = []
         for exercise in exercises:
@@ -80,6 +82,31 @@ def get_popular_exercises_view():
         popular_exercises = get_popular_exercises()
 
         return jsonify({'popular_exercises': popular_exercises}), 200
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Something went wrong'}), 500
+
+
+@trainings_bp.route('/adapt', methods=['POST'])
+def adapt_training_view():
+    try:
+        token = request.headers.get('Authorization').split(' ')[1]
+        uid = verify_token_service(token)
+        if uid is None:
+            return jsonify({'error': 'Invalid token'}), 401
+
+        data = request.get_json()
+        exercise_ids = data.get('exercises')
+        available_equipment = data.get('available_equipment', [])
+
+        if not isinstance(exercise_ids, list):
+            return jsonify({'error': 'exercises must be a list'}), 400
+        if not isinstance(available_equipment, list):
+            return jsonify({'error': 'available_equipment must be a list'}), 400
+
+        result = adapt_training(exercise_ids, available_equipment)
+        return jsonify(result), 200
 
     except Exception as e:
         print(f"Error: {e}")

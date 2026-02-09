@@ -16,6 +16,8 @@ def validate_body(data):
     calories_per_hour = data.get('calories_per_hour')
     public = data.get('public')
     category_id = data.get('category_id')
+    equipment_required = data.get('equipment_required')
+    alternative_exercise_ids = data.get('alternative_exercise_ids')
 
     if not name or calories_per_hour is None or public is None or category_id is None:
         return {"error": "Missing data"}, 400
@@ -25,6 +27,12 @@ def validate_body(data):
 
     if calories_per_hour <= 0 or calories_per_hour >= 10000:
         return {"error": "calorias_por_hora should be between 1 and 10000"}, 400
+
+    if equipment_required is not None and not isinstance(equipment_required, list):
+        return {"error": "equipment_required must be a list"}, 400
+
+    if alternative_exercise_ids is not None and not isinstance(alternative_exercise_ids, list):
+        return {"error": "alternative_exercise_ids must be a list"}, 400
 
     return None
 
@@ -53,12 +61,24 @@ def save_exercise():
         category_id = data['category_id']
         image_url = data['image_url']
         training_muscle = data['training_muscle']
+        equipment_required = data.get('equipment_required')
+        alternative_exercise_ids = data.get('alternative_exercise_ids')
 
         if isinstance(public, str):
             public = True if public.lower() == 'true' else False
 
 
-        success, exercise = save_exercise_service(uid, name, calories_per_hour, public, category_id, training_muscle, image_url)
+        success, exercise = save_exercise_service(
+            uid,
+            name,
+            calories_per_hour,
+            public,
+            category_id,
+            training_muscle,
+            image_url,
+            equipment_required,
+            alternative_exercise_ids,
+        )
         if not success:
             return jsonify({"error": "Failed to save exercise"}), 500
 
@@ -162,6 +182,20 @@ def edit_exercise(exercise_id):
             else:
                 return jsonify({"error": "Invalid data type for 'public'"}), 400
 
+        if 'equipment_required' in data:
+            equipment_required = data['equipment_required']
+            if isinstance(equipment_required, list):
+                update_data['equipment_required'] = equipment_required
+            else:
+                return jsonify({"error": "Invalid data type for 'equipment_required'"}), 400
+
+        if 'alternative_exercise_ids' in data:
+            alternative_exercise_ids = data['alternative_exercise_ids']
+            if isinstance(alternative_exercise_ids, list):
+                update_data['alternative_exercise_ids'] = alternative_exercise_ids
+            else:
+                return jsonify({"error": "Invalid data type for 'alternative_exercise_ids'"}), 400
+
         if not update_data:
             return jsonify({"error": "No valid fields to update"}), 400
 
@@ -208,11 +242,25 @@ def save_default_exercises():
             public = exercise['public']
             category_id = exercise['category_id']
             uid = "default"
+            equipment_required = exercise.get('equipment_required')
+            alternative_exercise_ids = exercise.get('alternative_exercise_ids')
+            training_muscle = exercise.get('training_muscle')
+            image_url = exercise.get('image_url')
 
             if isinstance(public, str):
                 public = True if public.lower() == 'true' else False
 
-            success = save_exercise_service(uid, name, calories_per_hour, public, category_id)
+            success = save_exercise_service(
+                uid,
+                name,
+                calories_per_hour,
+                public,
+                category_id,
+                training_muscle,
+                image_url,
+                equipment_required,
+                alternative_exercise_ids,
+            )
             if not success:
                 response.append({"exercise": exercise, "error": "Failed to save exercise"})
                 continue
