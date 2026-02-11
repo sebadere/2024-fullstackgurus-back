@@ -11,36 +11,60 @@ def _parse_date(date_str):
     return date_obj.replace(hour=10, minute=0)
 
 
+def _parse_number(value, default=None):
+    if value is None:
+        return default
+    if isinstance(value, str):
+        value = value.strip()
+        if value == '':
+            return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def add_outdoor_workout(uid, data):
     try:
-        activity_type = data.get('activity_type', '').upper()
+        activity_type = str(data.get('activity_type', '')).upper()
         if activity_type not in VALID_ACTIVITY_TYPES:
             return False, {"error": "Invalid activity_type"}
 
-        duration_minutes = data.get('duration_minutes')
-        calories = data.get('calories')
+        duration_minutes = _parse_number(data.get('duration_minutes'))
+        calories = _parse_number(data.get('calories'))
         date_str = data.get('date')
 
         if not date_str:
             return False, {"error": "date is required"}
 
-        if not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
+        if duration_minutes is None:
+            return False, {"error": "duration_minutes is required"}
+        if duration_minutes <= 0:
             return False, {"error": "duration_minutes must be > 0"}
 
-        if not isinstance(calories, (int, float)) or calories <= 0:
+        if calories is None:
+            return False, {"error": "calories is required"}
+        if calories <= 0:
             return False, {"error": "calories must be > 0"}
 
-        distance_km = data.get('distance_km', 0)
-        elevation_gain_m = data.get('elevation_gain_m', 0)
+        distance_km = _parse_number(data.get('distance_km'), default=0)
+        elevation_gain_m = _parse_number(data.get('elevation_gain_m'), default=0)
         notes = data.get('notes', '')
 
-        if not isinstance(distance_km, (int, float)) or distance_km < 0:
+        if distance_km is None:
+            return False, {"error": "distance_km must be numeric"}
+        if distance_km < 0:
             return False, {"error": "distance_km must be >= 0"}
 
-        if not isinstance(elevation_gain_m, (int, float)) or elevation_gain_m < 0:
+        if elevation_gain_m is None:
+            return False, {"error": "elevation_gain_m must be numeric"}
+        if elevation_gain_m < 0:
             return False, {"error": "elevation_gain_m must be >= 0"}
 
-        date_obj = _parse_date(date_str)
+        try:
+            date_obj = _parse_date(date_str)
+        except ValueError:
+            return False, {"error": "date must use YYYY-MM-DD format"}
 
         user_ref = db.collection('outdoor_workouts').document(uid)
         if not user_ref.get().exists:
@@ -54,7 +78,7 @@ def add_outdoor_workout(uid, data):
             'distance_km': distance_km,
             'elevation_gain_m': elevation_gain_m,
             'calories': calories,
-            'notes': notes,
+            'notes': str(notes) if notes is not None else '',
         })
 
         workout_id = workout_ref[1].id
