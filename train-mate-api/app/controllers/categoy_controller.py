@@ -14,7 +14,7 @@ from app import limiter
 def exempt_from_limit():
     origin = request.headers.get('Origin') or request.headers.get('Referer') or request.host
     print(f"Origin detected: {origin}")
-    if origin in ['http://localhost:3000', 'https://train-mate-front.vercel.app']:
+    if origin in ['http://localhost:3000', 'https://train-mate-front.vercel.app', 'https://two024-fullstackgurus-front.onrender.com']:
         return True
     return False
 
